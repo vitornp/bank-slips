@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: bank-slip
+
+  main:
+    banner-mode: "off"
+
+  jackson:
+    default-property-inclusion: non_null
+    property-naming-strategy: SNAKE_CASE
+    serialization:
+      write_dates_as_timestamps: false
+      fail_on_empty_beans: false
+    deserialization:
+      fail_on_unknown_properties: false
+
+  datasource:
+    url: jdbc:h2:mem:bankSlip
+    hikari:
+      pool-name: bankSlipPool
+      minimum-idle: 5
+      maximum-pool-size: 5
+      connection-timeout: 2000
+      leak-detection-threshold: 6000
+      driver-class-name: org.h2.Driver
+
+  flyway:
+    enabled: false
+
+server:
+  port: 9009
+  servlet:
+    context-path: /rest
+
+management:
+  info:
+    git:
+      mode: full
+  server:
+    port: 9999
