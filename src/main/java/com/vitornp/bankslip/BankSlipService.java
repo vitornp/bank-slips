@@ -4,6 +4,8 @@ import com.vitornp.bankslip.model.BankSlip;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class BankSlipService {
 
@@ -18,4 +20,7 @@ public class BankSlipService {
         return repository.save(bankSlip);
     }
 
+    public List<BankSlip> findAll() {
+        return repository.findAll();
+    }
 }
