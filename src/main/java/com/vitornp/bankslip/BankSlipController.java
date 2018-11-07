@@ -6,6 +6,7 @@ import com.vitornp.bankslip.representation.BankSlipRequest;
 import com.vitornp.bankslip.representation.BankSlipResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -51,6 +52,12 @@ public class BankSlipController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void paymentById(@PathVariable UUID id, @RequestBody @Valid BankSlipPaymentRequest request) {
         service.paymentById(id, request.getPaymentDate());
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void cancelById(@PathVariable UUID id) {
+        service.cancelById(id);
     }
 
     private BankSlip toModel(BankSlipRequest request) {

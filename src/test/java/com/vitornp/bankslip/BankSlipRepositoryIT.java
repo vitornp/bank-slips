@@ -10,7 +10,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Optional;
 import java.util.UUID;
-import static org.junit.jupiter.api.Assertions.*;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
 class BankSlipRepositoryIT {
@@ -38,6 +40,28 @@ class BankSlipRepositoryIT {
         BankSlip bankSlip = bankSlipOptional.get();
         assertEquals(BankSlipStatus.PAID, bankSlip.getStatus());
         assertEquals(paymentDate, bankSlip.getPaymentDate());
+        assertTrue(bankSlipCreated.getUpdatedAt().isBefore(bankSlip.getUpdatedAt()));
+    }
+
+    @Test
+    void updateStatus() {
+        // Given a bank slip
+        BankSlip bankSlipCreated = givenBankSlip();
+        repository.save(bankSlipCreated);
+
+        // Given data for update
+        UUID id = bankSlipCreated.getId();
+        BankSlipStatus bankSlipStatus = BankSlipStatus.CANCELED;
+
+        // When
+        repository.updateStatus(id, bankSlipStatus);
+
+        // Then
+        Optional<BankSlip> bankSlipOptional = repository.findById(id);
+        assertTrue(bankSlipOptional.isPresent());
+
+        BankSlip bankSlip = bankSlipOptional.get();
+        assertEquals(bankSlipStatus, bankSlip.getStatus());
         assertTrue(bankSlipCreated.getUpdatedAt().isBefore(bankSlip.getUpdatedAt()));
     }
 

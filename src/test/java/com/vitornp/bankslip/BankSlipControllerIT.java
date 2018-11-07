@@ -20,6 +20,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
@@ -162,7 +163,7 @@ public class BankSlipControllerIT {
     }
 
     @Test
-    public void paymentByIdwhenNotFound() throws Exception {
+    public void paymentByIdWhenNotFound() throws Exception {
         // Given
         String request = "{" +
             "  \"payment_date\": \"2020-01-01\"" +
@@ -173,6 +174,37 @@ public class BankSlipControllerIT {
             post(String.format("/bankslips/%s/payments", UUID.randomUUID()))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(request)
+        );
+
+        // Then
+        resultActions
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    public void cancelById() throws Exception {
+        // Given
+        BankSlip bankSlip = bankSlipService.save(givenBankSlip(LocalDate.now().plusDays(2), "Test 1", "1000"));
+
+        // When
+        ResultActions resultActions = this.mvc.perform(
+            delete(String.format("/bankslips/%s", bankSlip.getId()))
+                .contentType(MediaType.APPLICATION_JSON)
+        );
+
+        // Then
+        resultActions
+            .andExpect(status().isNoContent());
+    }
+
+    @Test
+    public void cancelByIdWhenNotFound() throws Exception {
+        // Given
+
+        // When
+        ResultActions resultActions = this.mvc.perform(
+            delete(String.format("/bankslips/%s", UUID.randomUUID()))
+                .contentType(MediaType.APPLICATION_JSON)
         );
 
         // Then

@@ -27,7 +27,7 @@ public class RestErrorHandler {
         Map<String, String> fieldErrors = ex.getBindingResult()
             .getFieldErrors()
             .stream()
-            .collect(Collectors.toMap(p-> toSnakeCase(p.getField()), FieldError::getDefaultMessage));
+            .collect(Collectors.toMap(p -> toSnakeCase(p.getField()), FieldError::getDefaultMessage));
 
         return new Error(UNPROCESSABLE_ENTITY, fieldErrors);
     }

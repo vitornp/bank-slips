@@ -77,6 +77,19 @@ public class BankSlipRepository {
         );
     }
 
+    public int updateStatus(UUID id, BankSlipStatus status) {
+        Map<String, Object> params = ImmutableMap.<String, Object>builder()
+            .put("id", id)
+            .put("status", status.toString())
+            .put("updated_at", Timestamp.from(Instant.now()))
+            .build();
+
+        return namedJdbcTemplate.update(
+            "UPDATE bank_slip SET status = :status, updated_at = :updated_at WHERE  id = :id",
+            params
+        );
+    }
+
     public List<BankSlip> findAll() {
         return namedJdbcTemplate.query("SELECT * FROM bank_slip ORDER BY created_at DESC", ROW_MAPPER);
     }
