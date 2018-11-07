@@ -24,9 +24,6 @@ spring:
       leak-detection-threshold: 6000
       driver-class-name: org.h2.Driver
 
-  flyway:
-    enabled: false
-
 server:
   port: 9009
   servlet:
