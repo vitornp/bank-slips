@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.ResultActions;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
@@ -46,10 +47,10 @@ public class BankSlipControllerIT {
     @Test
     public void createSuccessfully() throws Exception {
         // Given
-        String request = "{\n" +
-            "  \"due_date\": \"2020-01-01\",\n" +
-            "  \"customer\": \"Test\",\n" +
-            "  \"total_in_cents\": 0.1\n" +
+        String request = "{" +
+            "  \"due_date\": \"2020-01-01\"," +
+            "  \"customer\": \"Test\"," +
+            "  \"total_in_cents\": 0.1" +
             "}";
 
         // When
@@ -72,9 +73,9 @@ public class BankSlipControllerIT {
     @Test
     public void createErrorWhenAnyFieldIsNull() throws Exception {
         // Given
-        String request = "{\n" +
-            "  \"customer\": \"Test\",\n" +
-            "  \"total_in_cents\": 0.1\n" +
+        String request = "{" +
+            "  \"customer\": \"Test\"," +
+            "  \"total_in_cents\": 0.1" +
             "}";
 
         // When
@@ -138,6 +139,45 @@ public class BankSlipControllerIT {
         resultActions
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.*", hasSize(0)));
+    }
+
+    @Test
+    public void paymentById() throws Exception {
+        // Given
+        BankSlip bankSlip = bankSlipService.save(givenBankSlip(LocalDate.now().plusDays(2), "Test 1", "1000"));
+        String request = "{" +
+            "  \"payment_date\": \"2020-01-01\"" +
+            "}";
+
+        // When
+        ResultActions resultActions = this.mvc.perform(
+            post(String.format("/bankslips/%s/payments", bankSlip.getId()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(request)
+        );
+
+        // Then
+        resultActions
+            .andExpect(status().isNoContent());
+    }
+
+    @Test
+    public void paymentByIdwhenNotFound() throws Exception {
+        // Given
+        String request = "{" +
+            "  \"payment_date\": \"2020-01-01\"" +
+            "}";
+
+        // When
+        ResultActions resultActions = this.mvc.perform(
+            post(String.format("/bankslips/%s/payments", UUID.randomUUID()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(request)
+        );
+
+        // Then
+        resultActions
+            .andExpect(status().isNotFound());
     }
 
     private BankSlip givenBankSlip(LocalDate dueDate, String customer, String totalInCents) {

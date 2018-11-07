@@ -1,11 +1,13 @@
 package com.vitornp.bankslip;
 
 import com.vitornp.bankslip.model.BankSlip;
+import com.vitornp.bankslip.representation.BankSlipPaymentRequest;
 import com.vitornp.bankslip.representation.BankSlipRequest;
 import com.vitornp.bankslip.representation.BankSlipResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,8 +15,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
-
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
@@ -43,6 +45,12 @@ public class BankSlipController {
             .stream()
             .map(this::toResponse)
             .collect(Collectors.toList());
+    }
+
+    @PostMapping("/{id}/payments")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void paymentById(@PathVariable UUID id, @RequestBody @Valid BankSlipPaymentRequest request) {
+        service.paymentById(id, request.getPaymentDate());
     }
 
     private BankSlip toModel(BankSlipRequest request) {

@@ -10,7 +10,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
-@Builder
+@Builder(toBuilder = true)
 @Getter
 public class BankSlip {
 
@@ -18,6 +18,8 @@ public class BankSlip {
     private UUID id = UUID.randomUUID();
 
     private LocalDate dueDate;
+
+    private LocalDate paymentDate;
 
     private BigDecimal totalInCents;
 
@@ -28,5 +30,8 @@ public class BankSlip {
 
     @Default
     private Instant createdAt = Instant.now();
+
+    @Default
+    private Instant updatedAt = Instant.now();
 
 }
