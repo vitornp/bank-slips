@@ -16,8 +16,7 @@ public class BankSlipDetail {
     private LocalDate paymentDate;
     private BigDecimal totalInCents;
     private String customer;
-    private BankSlipStatus status;
+    private BankSlipStatusValue status;
     private Instant createdAt;
-    private Instant updatedAt;
     private BigDecimal fine;
 }

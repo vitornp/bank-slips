@@ -1,12 +1,17 @@
 package com.vitornp.bankslip;
 
 import com.vitornp.bankslip.dto.BankSlipDetail;
-import com.vitornp.bankslip.dto.BankSlipStatus;
+import com.vitornp.bankslip.dto.BankSlipStatusValue;
 import com.vitornp.bankslip.exception.BankSlipCanceledException;
 import com.vitornp.bankslip.exception.BankSlipNotFoundException;
 import com.vitornp.bankslip.model.BankSlip;
+import com.vitornp.bankslip.model.BankSlipStatus;
+import com.vitornp.bankslip.repository.BankSlipRepository;
+import com.vitornp.bankslip.repository.BankSlipStatusRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -16,11 +21,13 @@ import java.time.LocalDate;
 import java.util.Optional;
 import java.util.UUID;
 
-import static com.vitornp.bankslip.dto.BankSlipStatus.CANCELED;
-import static com.vitornp.bankslip.dto.BankSlipStatus.PAID;
-import static com.vitornp.bankslip.dto.BankSlipStatus.PENDING;
+import static com.vitornp.bankslip.dto.BankSlipStatusValue.CANCELED;
+import static com.vitornp.bankslip.dto.BankSlipStatusValue.PAID;
+import static com.vitornp.bankslip.dto.BankSlipStatusValue.PENDING;
 import static java.lang.String.format;
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.verify;
@@ -36,19 +43,32 @@ class BankSlipServiceTest {
     @Mock
     private BankSlipRepository repository;
 
+    @Mock
+    private BankSlipStatusRepository statusRepository;
+
+    @Captor
+    private ArgumentCaptor<BankSlipStatus> bankSlipStatusCaptor;
+
     @Test
     void paymentById() {
         // Given
-        UUID id = UUID.randomUUID();
+        UUID bankSlipId = UUID.randomUUID();
         LocalDate paymentDate = LocalDate.now();
-        when(repository.findById(eq(id))).thenReturn(Optional.of(BankSlip.builder().build()));
+        when(repository.findById(eq(bankSlipId))).thenReturn(Optional.of(BankSlip.builder().id(bankSlipId).build()));
 
         // When
-        service.paymentById(id, paymentDate);
+        service.paymentById(bankSlipId, paymentDate);
 
         // Then
-        verify(repository).findById(eq(id));
-        verify(repository).updatePayment(eq(id), eq(paymentDate));
+        verify(repository).findById(eq(bankSlipId));
+        verify(statusRepository).findAllByBankSlipId(eq(bankSlipId));
+        verify(statusRepository).save(bankSlipStatusCaptor.capture());
+        BankSlipStatus bankSlipStatus = bankSlipStatusCaptor.getValue();
+        assertNotNull(bankSlipStatus.getId());
+        assertEquals(bankSlipId, bankSlipStatus.getBankSlipId());
+        assertEquals(paymentDate, bankSlipStatus.getDate());
+        assertEquals(PAID, bankSlipStatus.getStatus());
+        assertNotNull(bankSlipStatus.getCreatedAt());
     }
 
     @Test
@@ -63,22 +83,29 @@ class BankSlipServiceTest {
 
         // Then
         verify(repository).findById(eq(id));
-        verifyNoMoreInteractions(repository);
+        verifyNoMoreInteractions(repository, statusRepository);
         assertEquals(format("Bank slip '%s' not found", id), exception.getMessage());
     }
 
     @Test
     void cancelById() {
         // Given
-        UUID id = UUID.randomUUID();
-        when(repository.findById(eq(id))).thenReturn(Optional.of(BankSlip.builder().build()));
+        UUID bankSlipId = UUID.randomUUID();
+        when(repository.findById(eq(bankSlipId))).thenReturn(Optional.of(BankSlip.builder().id(bankSlipId).build()));
 
         // When
-        service.cancelById(id);
+        service.cancelById(bankSlipId);
 
         // Then
-        verify(repository).findById(eq(id));
-        verify(repository).updateStatus(eq(id), eq(CANCELED));
+        verify(repository).findById(eq(bankSlipId));
+        verify(statusRepository).findAllByBankSlipId(eq(bankSlipId));
+        verify(statusRepository).save(bankSlipStatusCaptor.capture());
+        BankSlipStatus bankSlipStatus = bankSlipStatusCaptor.getValue();
+        assertNotNull(bankSlipStatus.getId());
+        assertEquals(bankSlipId, bankSlipStatus.getBankSlipId());
+        assertEquals(LocalDate.now(), bankSlipStatus.getDate());
+        assertEquals(CANCELED, bankSlipStatus.getStatus());
+        assertNotNull(bankSlipStatus.getCreatedAt());
     }
 
     @Test
@@ -92,7 +119,7 @@ class BankSlipServiceTest {
 
         // Then
         verify(repository).findById(eq(id));
-        verifyNoMoreInteractions(repository);
+        verifyNoMoreInteractions(repository, statusRepository);
         assertEquals(format("Bank slip '%s' not found", id), exception.getMessage());
     }
 
@@ -100,13 +127,15 @@ class BankSlipServiceTest {
     void cancelByIdWhenCanNotBeCanceled() {
         // Given
         UUID id = UUID.randomUUID();
-        when(repository.findById(eq(id))).thenReturn(Optional.of(BankSlip.builder().status(PAID).build()));
+        BankSlip bankSlip = mockBankSlip(id, LocalDate.now());
+        BankSlipStatus bankSlipStatus = mockBankSlipStatus(id, PAID);
 
         // When
         Throwable exception = assertThrows(BankSlipCanceledException.class, () -> service.cancelById(id));
 
         // Then
         verify(repository).findById(eq(id));
+        verify(statusRepository).findAllByBankSlipId(eq(id));
         verifyNoMoreInteractions(repository);
         assertEquals(format("Bank slip '%s' can not be canceled", id), exception.getMessage());
     }
@@ -130,15 +159,15 @@ class BankSlipServiceTest {
     void findDetailByIdWhenPendingAndDueDateIsNow() {
         // Given
         UUID id = UUID.randomUUID();
-        BankSlip bankSlip = givenBankSlip(id, PENDING, LocalDate.now());
-        when(repository.findById(eq(id))).thenReturn(Optional.of(bankSlip));
+        BankSlip bankSlip = mockBankSlip(id, LocalDate.now());
+        BankSlipStatus bankSlipStatus = mockBankSlipStatus(id, PENDING);
 
         // When
         BankSlipDetail bankSlipDetail = service.findDetailById(id);
 
         // Then
         verify(repository).findById(eq(id));
-        assertEqualsBankSlipDetail(bankSlip, bankSlipDetail);
+        assertEqualsBankSlipDetail(bankSlip, bankSlipStatus, bankSlipDetail);
         assertEquals(new BigDecimal("0.00"), bankSlipDetail.getFine());
     }
 
@@ -146,15 +175,15 @@ class BankSlipServiceTest {
     void findDetailByIdWhenPendingAndDueDateIsFiveDaysAgo() {
         // Given
         UUID id = UUID.randomUUID();
-        BankSlip bankSlip = givenBankSlip(id, PENDING, LocalDate.now().minusDays(5));
-        when(repository.findById(eq(id))).thenReturn(Optional.of(bankSlip));
+        BankSlip bankSlip = mockBankSlip(id, LocalDate.now().minusDays(5));
+        BankSlipStatus bankSlipStatus = mockBankSlipStatus(id, PENDING);
 
         // When
         BankSlipDetail bankSlipDetail = service.findDetailById(id);
 
         // Then
         verify(repository).findById(eq(id));
-        assertEqualsBankSlipDetail(bankSlip, bankSlipDetail);
+        assertEqualsBankSlipDetail(bankSlip, bankSlipStatus, bankSlipDetail);
         assertEquals(new BigDecimal("7.45"), bankSlipDetail.getFine());
     }
 
@@ -162,15 +191,15 @@ class BankSlipServiceTest {
     void findDetailByIdWhenPendingAndDueDateIsTenDaysAgo() {
         // Given
         UUID id = UUID.randomUUID();
-        BankSlip bankSlip = givenBankSlip(id, PENDING, LocalDate.now().minusDays(10));
-        when(repository.findById(eq(id))).thenReturn(Optional.of(bankSlip));
+        BankSlip bankSlip = mockBankSlip(id, LocalDate.now().minusDays(10));
+        BankSlipStatus bankSlipStatus = mockBankSlipStatus(id, PENDING);
 
         // When
         BankSlipDetail bankSlipDetail = service.findDetailById(id);
 
         // Then
         verify(repository).findById(eq(id));
-        assertEqualsBankSlipDetail(bankSlip, bankSlipDetail);
+        assertEqualsBankSlipDetail(bankSlip, bankSlipStatus, bankSlipDetail);
         assertEquals(new BigDecimal("7.45"), bankSlipDetail.getFine());
     }
 
@@ -178,15 +207,15 @@ class BankSlipServiceTest {
     void findDetailByIdWhenPendingAndDueDateIsElevenDaysAgo() {
         // Given
         UUID id = UUID.randomUUID();
-        BankSlip bankSlip = givenBankSlip(id, PENDING, LocalDate.now().minusDays(11));
-        when(repository.findById(eq(id))).thenReturn(Optional.of(bankSlip));
+        BankSlip bankSlip = mockBankSlip(id, LocalDate.now().minusDays(11));
+        BankSlipStatus bankSlipStatus = mockBankSlipStatus(id, PENDING);
 
         // When
         BankSlipDetail bankSlipDetail = service.findDetailById(id);
 
         // Then
         verify(repository).findById(eq(id));
-        assertEqualsBankSlipDetail(bankSlip, bankSlipDetail);
+        assertEqualsBankSlipDetail(bankSlip, bankSlipStatus, bankSlipDetail);
         assertEquals(new BigDecimal("14.90"), bankSlipDetail.getFine());
     }
 
@@ -195,15 +224,15 @@ class BankSlipServiceTest {
     void findDetailByIdWhenPaidAndDueDateIsNow() {
         // Given
         UUID id = UUID.randomUUID();
-        BankSlip bankSlip = givenBankSlip(id, PAID, LocalDate.now(), LocalDate.now());
-        when(repository.findById(eq(id))).thenReturn(Optional.of(bankSlip));
+        BankSlip bankSlip = mockBankSlip(id, LocalDate.now());
+        BankSlipStatus bankSlipStatus = mockBankSlipStatus(id, PAID, LocalDate.now());
 
         // When
         BankSlipDetail bankSlipDetail = service.findDetailById(id);
 
         // Then
         verify(repository).findById(eq(id));
-        assertEqualsBankSlipDetail(bankSlip, bankSlipDetail);
+        assertEqualsBankSlipDetail(bankSlip, bankSlipStatus, bankSlipDetail);
         assertEquals(new BigDecimal("0.00"), bankSlipDetail.getFine());
     }
 
@@ -211,15 +240,15 @@ class BankSlipServiceTest {
     void findDetailByIdWhenPaidAndDueDateIsFiveDaysAhead() {
         // Given
         UUID id = UUID.randomUUID();
-        BankSlip bankSlip = givenBankSlip(id, PAID, LocalDate.now(), LocalDate.now().plusDays(5));
-        when(repository.findById(eq(id))).thenReturn(Optional.of(bankSlip));
+        BankSlip bankSlip = mockBankSlip(id, LocalDate.now());
+        BankSlipStatus bankSlipStatus = mockBankSlipStatus(id, PAID, LocalDate.now().plusDays(5));
 
         // When
         BankSlipDetail bankSlipDetail = service.findDetailById(id);
 
         // Then
         verify(repository).findById(eq(id));
-        assertEqualsBankSlipDetail(bankSlip, bankSlipDetail);
+        assertEqualsBankSlipDetail(bankSlip, bankSlipStatus, bankSlipDetail);
         assertEquals(new BigDecimal("7.45"), bankSlipDetail.getFine());
     }
 
@@ -227,15 +256,15 @@ class BankSlipServiceTest {
     void findDetailByIdWhenPaidAndDueDateIsTenDaysAhead() {
         // Given
         UUID id = UUID.randomUUID();
-        BankSlip bankSlip = givenBankSlip(id, PAID, LocalDate.now(), LocalDate.now().plusDays(10));
-        when(repository.findById(eq(id))).thenReturn(Optional.of(bankSlip));
+        BankSlip bankSlip = mockBankSlip(id, LocalDate.now());
+        BankSlipStatus bankSlipStatus = mockBankSlipStatus(id, PAID, LocalDate.now().plusDays(10));
 
         // When
         BankSlipDetail bankSlipDetail = service.findDetailById(id);
 
         // Then
         verify(repository).findById(eq(id));
-        assertEqualsBankSlipDetail(bankSlip, bankSlipDetail);
+        assertEqualsBankSlipDetail(bankSlip, bankSlipStatus, bankSlipDetail);
         assertEquals(new BigDecimal("7.45"), bankSlipDetail.getFine());
     }
 
@@ -243,15 +272,15 @@ class BankSlipServiceTest {
     void findDetailByIdWhenPaidAndDueDateIsElevenDaysAhead() {
         // Given
         UUID id = UUID.randomUUID();
-        BankSlip bankSlip = givenBankSlip(id, PAID, LocalDate.now(), LocalDate.now().plusDays(11));
-        when(repository.findById(eq(id))).thenReturn(Optional.of(bankSlip));
+        BankSlip bankSlip = mockBankSlip(id, LocalDate.now());
+        BankSlipStatus bankSlipStatus = mockBankSlipStatus(id, PAID, LocalDate.now().plusDays(11));
 
         // When
         BankSlipDetail bankSlipDetail = service.findDetailById(id);
 
         // Then
         verify(repository).findById(eq(id));
-        assertEqualsBankSlipDetail(bankSlip, bankSlipDetail);
+        assertEqualsBankSlipDetail(bankSlip, bankSlipStatus, bankSlipDetail);
         assertEquals(new BigDecimal("14.90"), bankSlipDetail.getFine());
     }
 
@@ -260,15 +289,15 @@ class BankSlipServiceTest {
     void findDetailByIdWhenCanceledAndDueDateIsNow() {
         // Given
         UUID id = UUID.randomUUID();
-        BankSlip bankSlip = givenBankSlip(id, CANCELED, LocalDate.now());
-        when(repository.findById(eq(id))).thenReturn(Optional.of(bankSlip));
+        BankSlip bankSlip = mockBankSlip(id, LocalDate.now());
+        BankSlipStatus bankSlipStatus = mockBankSlipStatus(id, CANCELED);
 
         // When
         BankSlipDetail bankSlipDetail = service.findDetailById(id);
 
         // Then
         verify(repository).findById(eq(id));
-        assertEqualsBankSlipDetail(bankSlip, bankSlipDetail);
+        assertEqualsBankSlipDetail(bankSlip, bankSlipStatus, bankSlipDetail);
         assertEquals(new BigDecimal("0.00"), bankSlipDetail.getFine());
     }
 
@@ -276,15 +305,15 @@ class BankSlipServiceTest {
     void findDetailByIdWhenCanceledAndDueDateIsFiveDaysAgo() {
         // Given
         UUID id = UUID.randomUUID();
-        BankSlip bankSlip = givenBankSlip(id, CANCELED, LocalDate.now().plusDays(10));
-        when(repository.findById(eq(id))).thenReturn(Optional.of(bankSlip));
+        BankSlip bankSlip = mockBankSlip(id, LocalDate.now().plusDays(10));
+        BankSlipStatus bankSlipStatus = mockBankSlipStatus(id, CANCELED);
 
         // When
         BankSlipDetail bankSlipDetail = service.findDetailById(id);
 
         // Then
         verify(repository).findById(eq(id));
-        assertEqualsBankSlipDetail(bankSlip, bankSlipDetail);
+        assertEqualsBankSlipDetail(bankSlip, bankSlipStatus, bankSlipDetail);
         assertEquals(new BigDecimal("0.00"), bankSlipDetail.getFine());
     }
 
@@ -292,41 +321,51 @@ class BankSlipServiceTest {
     void findDetailByIdWhenCanceledAndDueDateIsTenDaysAgo() {
         // Given
         UUID id = UUID.randomUUID();
-        BankSlip bankSlip = givenBankSlip(id, CANCELED, LocalDate.now().plusDays(11));
-        when(repository.findById(eq(id))).thenReturn(Optional.of(bankSlip));
+        BankSlip bankSlip = mockBankSlip(id, LocalDate.now().plusDays(11));
+        BankSlipStatus bankSlipStatus = mockBankSlipStatus(id, CANCELED);
 
         // When
         BankSlipDetail bankSlipDetail = service.findDetailById(id);
 
         // Then
         verify(repository).findById(eq(id));
-        assertEqualsBankSlipDetail(bankSlip, bankSlipDetail);
+        assertEqualsBankSlipDetail(bankSlip, bankSlipStatus, bankSlipDetail);
         assertEquals(new BigDecimal("0.00"), bankSlipDetail.getFine());
     }
 
-    private BankSlip givenBankSlip(UUID id, BankSlipStatus status, LocalDate dueDate) {
-        return givenBankSlip(id, status, dueDate, null);
-    }
-
-    private BankSlip givenBankSlip(UUID id, BankSlipStatus status, LocalDate dueDate, LocalDate paymentDate) {
-        return BankSlip.builder()
+    private BankSlip mockBankSlip(UUID id, LocalDate dueDate) {
+        BankSlip bankSlip = BankSlip.builder()
             .id(id)
             .dueDate(dueDate)
-            .paymentDate(paymentDate)
             .totalInCents(new BigDecimal("1490.13"))
             .customer("Test")
-            .status(status)
             .build();
+        when(repository.findById(eq(id))).thenReturn(Optional.of(bankSlip));
+        return bankSlip;
     }
 
-    private void assertEqualsBankSlipDetail(BankSlip expected, BankSlipDetail actual) {
+    private BankSlipStatus mockBankSlipStatus(UUID bankSlipId, BankSlipStatusValue status) {
+        return mockBankSlipStatus(bankSlipId, status, null);
+    }
+
+    private BankSlipStatus mockBankSlipStatus(UUID bankSlipId, BankSlipStatusValue status, LocalDate paymentDate) {
+        BankSlipStatus bankSlipStatus = BankSlipStatus.builder()
+            .bankSlipId(bankSlipId)
+            .status(status)
+            .date(paymentDate)
+            .build();
+
+        when(statusRepository.findAllByBankSlipId(eq(bankSlipId))).thenReturn(singletonList(bankSlipStatus));
+        return bankSlipStatus;
+    }
+
+    private void assertEqualsBankSlipDetail(BankSlip expected, BankSlipStatus expectedStatus, BankSlipDetail actual) {
         assertEquals(expected.getId(), actual.getId());
         assertEquals(expected.getDueDate(), actual.getDueDate());
-        assertEquals(expected.getPaymentDate(), actual.getPaymentDate());
         assertEquals(expected.getTotalInCents(), actual.getTotalInCents());
         assertEquals(expected.getCustomer(), actual.getCustomer());
-        assertEquals(expected.getStatus(), actual.getStatus());
         assertEquals(expected.getCreatedAt(), actual.getCreatedAt());
-        assertEquals(expected.getUpdatedAt(), actual.getUpdatedAt());
+        assertEquals(expectedStatus.getStatus(), actual.getStatus());
+        assertEquals(expectedStatus.getDate(), actual.getPaymentDate());
     }
 }

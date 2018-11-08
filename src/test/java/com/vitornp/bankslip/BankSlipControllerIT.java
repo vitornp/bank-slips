@@ -101,8 +101,15 @@ public class BankSlipControllerIT {
     public void findAll() throws Exception {
         // Given
         LocalDate dueDate = LocalDate.now();
+        BankSlip bankSlipPayment = givenBankSlip(dueDate.plusDays(3), "Test 3", "3000");
+        BankSlip bankSlipCanceled = givenBankSlip(dueDate.plusDays(4), "Test 4", "4000");
+        bankSlipService.save(bankSlipPayment);
+        bankSlipService.save(bankSlipCanceled);
         bankSlipService.save(givenBankSlip(dueDate.plusDays(2), "Test 1", "1000"));
         bankSlipService.save(givenBankSlip(dueDate.plusDays(1), "Test 2", "2000"));
+
+        bankSlipService.paymentById(bankSlipPayment.getId(), LocalDate.now().plusDays(4));
+        bankSlipService.cancelById(bankSlipCanceled.getId());
 
         // When
         ResultActions resultActions = this.mvc.perform(
@@ -113,7 +120,7 @@ public class BankSlipControllerIT {
         // Then
         resultActions
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.*", hasSize(2)))
+            .andExpect(jsonPath("$.*", hasSize(4)))
 
             .andExpect(jsonPath("$[0].id", notNullValue()))
             .andExpect(jsonPath("$[0].due_date", equalTo(dueDate.plusDays(1).toString())))
@@ -129,7 +136,23 @@ public class BankSlipControllerIT {
             .andExpect(jsonPath("$[1].total_in_cents", equalTo(1000.0)))
             .andExpect(jsonPath("$[1].customer", equalTo("Test 1")))
             .andExpect(jsonPath("$[1].status", equalTo("PENDING")))
-            .andExpect(jsonPath("$[1].fine").doesNotExist());
+            .andExpect(jsonPath("$[1].fine").doesNotExist())
+
+            .andExpect(jsonPath("$[2].id", notNullValue()))
+            .andExpect(jsonPath("$[2].due_date", equalTo(dueDate.plusDays(3).toString())))
+            .andExpect(jsonPath("$[2].payment_date", equalTo(LocalDate.now().plusDays(4).toString())))
+            .andExpect(jsonPath("$[2].total_in_cents", equalTo(3000.0)))
+            .andExpect(jsonPath("$[2].customer", equalTo("Test 3")))
+            .andExpect(jsonPath("$[2].status", equalTo("PAID")))
+            .andExpect(jsonPath("$[2].fine").doesNotExist())
+
+            .andExpect(jsonPath("$[3].id", notNullValue()))
+            .andExpect(jsonPath("$[3].due_date", equalTo(dueDate.plusDays(4).toString())))
+            .andExpect(jsonPath("$[3].payment_date").doesNotExist())
+            .andExpect(jsonPath("$[3].total_in_cents", equalTo(4000.0)))
+            .andExpect(jsonPath("$[3].customer", equalTo("Test 4")))
+            .andExpect(jsonPath("$[3].status", equalTo("CANCELED")))
+            .andExpect(jsonPath("$[3].fine").doesNotExist());
     }
 
     @Test

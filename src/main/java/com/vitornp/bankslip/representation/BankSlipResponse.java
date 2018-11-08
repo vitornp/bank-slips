@@ -1,6 +1,6 @@
 package com.vitornp.bankslip.representation;
 
-import com.vitornp.bankslip.dto.BankSlipStatus;
+import com.vitornp.bankslip.dto.BankSlipStatusValue;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -18,6 +18,6 @@ public class BankSlipResponse {
     private LocalDate paymentDate;
     private BigDecimal totalInCents;
     private String customer;
-    private BankSlipStatus status;
+    private BankSlipStatusValue status;
     private BigDecimal fine;
 }

@@ -2,6 +2,7 @@ package com.vitornp.bankslip;
 
 import com.vitornp.bankslip.dto.BankSlipDetail;
 import com.vitornp.bankslip.model.BankSlip;
+import com.vitornp.bankslip.model.BankSlipStatus;
 import com.vitornp.bankslip.representation.BankSlipPaymentRequest;
 import com.vitornp.bankslip.representation.BankSlipRequest;
 import com.vitornp.bankslip.representation.BankSlipResponse;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -81,12 +83,17 @@ public class BankSlipController {
     }
 
     private BankSlipResponse toResponse(BankSlip bankSlip) {
+        LocalDate paymentDate = bankSlip.getPaidStatus()
+            .map(BankSlipStatus::getDate)
+            .orElse(null);
+
         return BankSlipResponse.builder()
             .id(bankSlip.getId())
             .dueDate(bankSlip.getDueDate())
+            .paymentDate(paymentDate)
             .totalInCents(bankSlip.getTotalInCents())
             .customer(bankSlip.getCustomer())
-            .status(bankSlip.getStatus())
+            .status(bankSlip.getLastStatus().getStatus())
             .build();
     }
 

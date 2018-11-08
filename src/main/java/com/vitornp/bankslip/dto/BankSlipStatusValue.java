@@ -1,5 +1,5 @@
 package com.vitornp.bankslip.dto;
 
-public enum BankSlipStatus {
+public enum BankSlipStatusValue {
     PENDING, PAID, CANCELED
 }
