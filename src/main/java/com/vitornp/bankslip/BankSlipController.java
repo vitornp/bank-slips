@@ -5,6 +5,7 @@ import com.vitornp.bankslip.model.BankSlip;
 import com.vitornp.bankslip.representation.BankSlipPaymentRequest;
 import com.vitornp.bankslip.representation.BankSlipRequest;
 import com.vitornp.bankslip.representation.BankSlipResponse;
+import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -34,6 +35,7 @@ public class BankSlipController {
         this.service = service;
     }
 
+    @ApiOperation(value = "Create a bank slip")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public BankSlipResponse create(@RequestBody @Valid BankSlipRequest request) {
@@ -41,6 +43,7 @@ public class BankSlipController {
         return toResponse(save);
     }
 
+    @ApiOperation(value = "Find all bank slips")
     @GetMapping
     public List<BankSlipResponse> findAll() {
         return service.findAll()
@@ -49,17 +52,20 @@ public class BankSlipController {
             .collect(Collectors.toList());
     }
 
+    @ApiOperation(value = "Find by id a bank slip")
     @GetMapping("/{id}")
     public BankSlipResponse findById(@PathVariable UUID id) {
         return toResponse(service.findDetailById(id));
     }
 
+    @ApiOperation(value = "Pay a bank slip")
     @PostMapping("/{id}/payments")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void paymentById(@PathVariable UUID id, @RequestBody @Valid BankSlipPaymentRequest request) {
         service.paymentById(id, request.getPaymentDate());
     }
 
+    @ApiOperation(value = "Cancel bank slip")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void cancelById(@PathVariable UUID id) {
