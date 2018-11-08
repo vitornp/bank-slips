@@ -15,6 +15,7 @@ import java.util.UUID;
 public class BankSlipResponse {
     private UUID id;
     private LocalDate dueDate;
+    private LocalDate paymentDate;
     private BigDecimal totalInCents;
     private String customer;
     private BankSlipStatus status;

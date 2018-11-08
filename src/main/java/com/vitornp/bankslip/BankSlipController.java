@@ -94,6 +94,7 @@ public class BankSlipController {
         return BankSlipResponse.builder()
             .id(bankSlipDetail.getId())
             .dueDate(bankSlipDetail.getDueDate())
+            .paymentDate(bankSlipDetail.getPaymentDate())
             .totalInCents(bankSlipDetail.getTotalInCents())
             .customer(bankSlipDetail.getCustomer())
             .status(bankSlipDetail.getStatus())
