@@ -68,7 +68,8 @@ public class BankSlipControllerIT {
             .andExpect(jsonPath("due_date", equalTo("2020-01-01")))
             .andExpect(jsonPath("total_in_cents", equalTo(0.1)))
             .andExpect(jsonPath("customer", equalTo("Test")))
-            .andExpect(jsonPath("status", equalTo("PENDING")));
+            .andExpect(jsonPath("status", equalTo("PENDING")))
+            .andExpect(jsonPath("fine").doesNotExist());
     }
 
     @Test
@@ -118,12 +119,14 @@ public class BankSlipControllerIT {
             .andExpect(jsonPath("$[0].total_in_cents", equalTo(2000.0)))
             .andExpect(jsonPath("$[0].customer", equalTo("Test 2")))
             .andExpect(jsonPath("$[0].status", equalTo("PENDING")))
+            .andExpect(jsonPath("$[0].fine").doesNotExist())
 
             .andExpect(jsonPath("$[1].id", notNullValue()))
             .andExpect(jsonPath("$[1].due_date", equalTo(dueDate.plusDays(2).toString())))
             .andExpect(jsonPath("$[1].total_in_cents", equalTo(1000.0)))
             .andExpect(jsonPath("$[1].customer", equalTo("Test 1")))
-            .andExpect(jsonPath("$[1].status", equalTo("PENDING")));
+            .andExpect(jsonPath("$[1].status", equalTo("PENDING")))
+            .andExpect(jsonPath("$[1].fine").doesNotExist());
     }
 
     @Test
@@ -140,6 +143,30 @@ public class BankSlipControllerIT {
         resultActions
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.*", hasSize(0)));
+    }
+
+    @Test
+    public void findById() throws Exception {
+        // Given
+        LocalDate dueDate = LocalDate.now();
+        BankSlip bankSlip = givenBankSlip(dueDate, "Test 1", "2000");
+        bankSlipService.save(bankSlip);
+
+        // When
+        ResultActions resultActions = this.mvc.perform(
+            get(String.format("/bankslips/%s", bankSlip.getId()))
+                .contentType(MediaType.APPLICATION_JSON)
+        );
+
+        // Then
+        resultActions
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("id", notNullValue()))
+            .andExpect(jsonPath("due_date", equalTo(dueDate.toString())))
+            .andExpect(jsonPath("total_in_cents", equalTo(2000.0)))
+            .andExpect(jsonPath("customer", equalTo("Test 1")))
+            .andExpect(jsonPath("status", equalTo("PENDING")))
+            .andExpect(jsonPath("fine", equalTo(0.0)));
     }
 
     @Test

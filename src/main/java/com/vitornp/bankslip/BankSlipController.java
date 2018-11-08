@@ -1,5 +1,6 @@
 package com.vitornp.bankslip;
 
+import com.vitornp.bankslip.dto.BankSlipDetail;
 import com.vitornp.bankslip.model.BankSlip;
 import com.vitornp.bankslip.representation.BankSlipPaymentRequest;
 import com.vitornp.bankslip.representation.BankSlipRequest;
@@ -48,6 +49,11 @@ public class BankSlipController {
             .collect(Collectors.toList());
     }
 
+    @GetMapping("/{id}")
+    public BankSlipResponse findById(@PathVariable UUID id) {
+        return toResponse(service.findDetailById(id));
+    }
+
     @PostMapping("/{id}/payments")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void paymentById(@PathVariable UUID id, @RequestBody @Valid BankSlipPaymentRequest request) {
@@ -75,6 +81,17 @@ public class BankSlipController {
             .totalInCents(bankSlip.getTotalInCents())
             .customer(bankSlip.getCustomer())
             .status(bankSlip.getStatus())
+            .build();
+    }
+
+    private BankSlipResponse toResponse(BankSlipDetail bankSlipDetail) {
+        return BankSlipResponse.builder()
+            .id(bankSlipDetail.getId())
+            .dueDate(bankSlipDetail.getDueDate())
+            .totalInCents(bankSlipDetail.getTotalInCents())
+            .customer(bankSlipDetail.getCustomer())
+            .status(bankSlipDetail.getStatus())
+            .fine(bankSlipDetail.getFine())
             .build();
     }
 
